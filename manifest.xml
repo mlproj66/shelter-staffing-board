@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <OfficeApp
- xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
- xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
- xsi:type="TaskPaneApp">
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:type="ContentApp">
 
   <Id>6f13cae3-f626-4f34-98f1-cb3d261d1c4c</Id>
 
@@ -17,12 +16,14 @@
 
   <Description DefaultValue="Sticky note shelter staffing board"/>
 
-  <SupportUrl DefaultValue="https://github.com/mlproj66/shelter-staffing-board"/>
+  <IconUrl
+    DefaultValue="https://mlproj66.github.io/shelter-staffing-board/icon32.png"/>
 
+  <HighResolutionIconUrl
+    DefaultValue="https://mlproj66.github.io/shelter-staffing-board/icon80.png"/>
 
-  <IconUrl DefaultValue="https://mlproj66.github.io/shelter-staffing-board/icon32.png"/>
-
-  <HighResolutionIconUrl DefaultValue="https://mlproj66.github.io/shelter-staffing-board/icon80.png"/>
+  <SupportUrl
+    DefaultValue="https://github.com/mlproj66/shelter-staffing-board"/>
 
   <Hosts>
     <Host Name="Workbook"/>
@@ -35,10 +36,10 @@
   </Requirements>
 
   <DefaultSettings>
-
     <SourceLocation
       DefaultValue="https://mlproj66.github.io/shelter-staffing-board/taskpane.html"/>
-
+    <RequestedWidth>1000</RequestedWidth>
+    <RequestedHeight>700</RequestedHeight>
   </DefaultSettings>
 
   <Permissions>ReadWriteDocument</Permissions>
