@@ -1,0 +1,43 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 8px;
+    background: #f7f7f7;
+}
+
+#board {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.shelter {
+    width: 300px;
+    min-height: 250px;
+    background: #fff7a8;
+    border: 2px solid #d7ca76;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.shelterHeader {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.person {
+    background: #fff176;
+    padding: 8px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    cursor: move;
+    box-shadow: 1px 1px 2px rgba(0,0,0,.2);
+}
+
+.person:hover {
+    background: #ffee58;
+}
+
+.error {
+    color: red;
+}
