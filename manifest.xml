@@ -13,17 +13,16 @@
 
   <DefaultLocale>en-US</DefaultLocale>
 
-  <DisplayName
-    DefaultValue="Shelter Staffing Board"/>
+  <DisplayName DefaultValue="Shelter Staffing Board"/>
 
-  <Description
-    DefaultValue="Sticky note shelter staffing board"/>
+  <Description DefaultValue="Sticky note shelter staffing board"/>
 
-  <IconUrl
-    DefaultValue="https://mlproj66.github.io/shelter-staffing-board/icon32.png"/>
+  <SupportUrl DefaultValue="https://github.com/mlproj66/shelter-staffing-board"/>
 
-  <HighResolutionIconUrl
-    DefaultValue="https://mlproj66.github.io/shelter-staffing-board/icon80.png"/>
+
+  <IconUrl DefaultValue="https://mlproj66.github.io/shelter-staffing-board/icon32.png"/>
+
+  <HighResolutionIconUrl DefaultValue="https://mlproj66.github.io/shelter-staffing-board/icon80.png"/>
 
   <Hosts>
     <Host Name="Workbook"/>
