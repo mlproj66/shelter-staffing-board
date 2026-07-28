@@ -4,68 +4,88 @@ body {
     background: #f7f7f7;
 }
 
-#board {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
+#layout { display: flex; gap: 12px; align-items: flex-start; }
+
+#pool {
+    flex: 0 0 auto;
+    max-width: 170px;
+    background: #ffffff;
+    border: 1.5px dashed #c9c4b4;
+    border-radius: 8px;
+    padding: 8px 10px;
+    position: sticky;
+    top: 8px;
 }
+
+#pool.dragover { border-color: #8a84d8; background: #f1f0fb; }
+
+.poolHeader {
+    font-size: 12px; font-weight: bold; text-transform: uppercase;
+    letter-spacing: .04em; color: #6b675c; margin-bottom: 6px;
+}
+
+.poolChips { display: flex; flex-direction: column; gap: 5px; }
+
+.chip {
+    background: #ffffff;
+    border: 1px solid #b9b4a4;
+    border-radius: 12px;
+    padding: 3px 10px;
+    font-size: 13px;
+    cursor: grab;
+    white-space: nowrap;
+}
+
+.chip:hover { background: #f3f1ea; }
+
+#board { display: flex; flex-wrap: wrap; gap: 12px; flex: 1; }
 
 .shelter {
-    width: 300px;
-    min-height: 250px;
-    background: #fff7a8;
-    border: 2px solid #d7ca76;
-    padding: 10px;
-    border-radius: 8px;
+    width: 420px; min-height: 250px;
+    background: #fff7a8; border: 2px solid #d7ca76;
+    padding: 10px; border-radius: 8px;
 }
 
-.shelterHeader {
-    font-weight: bold;
-    font-size: 18px;
-    margin-bottom: 10px;
+.shelterHeader { font-weight: bold; font-size: 18px; margin-bottom: 10px; }
+
+.shiftColumns { display: flex; gap: 8px; }
+
+.shiftCol {
+    flex: 1; min-height: 120px;
+    background: rgba(255,255,255,0.35);
+    border: 1.5px dashed transparent;
+    border-radius: 6px; padding: 6px;
+}
+
+.shiftCol.dragover { border-color: #8a84d8; background: rgba(240,240,255,0.6); }
+
+.shiftHeader {
+    font-size: 12px; font-weight: bold; text-transform: uppercase;
+    letter-spacing: .04em; color: #6b675c; margin-bottom: 6px;
 }
 
 .person {
-    background: #fff176;
-    padding: 8px;
-    margin-bottom: 8px;
-    border-radius: 4px;
-    cursor: move;
+    background: #fff176; padding: 8px; margin-bottom: 8px;
+    border-radius: 4px; cursor: move;
     box-shadow: 1px 1px 2px rgba(0,0,0,.2);
 }
 
-.person:hover {
-    background: #ffee58;
+.person:hover { background: #ffee58; }
+
+#rolePicker {
+    position: absolute;
+    background: #fff; border: 1px solid #b9b4a4; border-radius: 8px;
+    box-shadow: 2px 3px 8px rgba(0,0,0,.25);
+    padding: 8px; z-index: 10;
 }
 
-.error {
-    color: red;
+#rolePicker .rpTitle { font-size: 12px; color: #6b675c; margin-bottom: 6px; }
+
+#rolePicker button {
+    font-size: 14px; font-weight: bold;
+    margin-right: 6px; padding: 6px 14px;
+    border: 1px solid #b9b4a4; border-radius: 6px;
+    background: #f7f5ee; cursor: pointer;
 }
 
-.shiftColumns {
-    display: flex;
-    gap: 8px;
-}
-
-.shiftCol {
-    flex: 1;
-    min-height: 120px;
-    background: rgba(255,255,255,0.35);
-    border: 1.5px dashed transparent;
-    border-radius: 6px;
-    padding: 6px;
-}
-
-.shiftCol.dragover {
-    border-color: #8a84d8;
-    background: rgba(240,240,255,0.6);
-}
-
-.shiftHeader {
-    font-size: 12px;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    color: #6b675c;
-    margin-bottom: 6px;
-}
+#rolePicker button:hover { background: #ece8da; }

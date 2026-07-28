@@ -27,8 +27,11 @@ async function registerWorkbookEvents() {
 
 async function refreshBoard() {
     assignments = await loadAssignments();
+    const people = await loadPeople();
+    const assignedIds = new Set(assignments.map(a => String(a.PersonID)));
+    const unassigned = people.filter(p => !assignedIds.has(String(p.PersonID)));
     const shelters = groupAssignments(assignments);
-    renderBoard(shelters);
+    renderBoard(shelters, unassigned);
 }
 
 async function loadAssignments() {
@@ -52,6 +55,26 @@ async function loadAssignments() {
     });
 }
 
+async function loadPeople() {
+    return Excel.run(async (context) => {
+        const table = context.workbook.tables.getItem("tblPeople");
+        const headerRange = table.getHeaderRowRange();
+        const bodyRange = table.getDataBodyRange();
+        headerRange.load("values");
+        bodyRange.load("values");
+        await context.sync();
+
+        const headers = headerRange.values[0];
+        return bodyRange.values
+            .filter(r => r[0] !== "" && r[0] !== null)
+            .map(row => {
+                const obj = {};
+                headers.forEach((h, i) => { obj[h] = row[i]; });
+                return obj;
+            });
+    });
+}
+
 function groupAssignments(rows) {
     const shelters = {};
     rows.forEach(row => {
@@ -68,13 +91,33 @@ function groupAssignments(rows) {
     return Object.values(shelters);
 }
 
-function renderBoard(shelters) {
+function roleRank(role) {
+    const r = String(role || "").trim().toUpperCase();
+    if (r === "SV" || r.startsWith("SV ") || r.startsWith("SV-")) return 1;
+    if (r === "SA" || r.startsWith("SA ") || r.startsWith("SA-")) return 2;
+    return 3;
+}
+
+function renderBoard(shelters, unassigned) {
+    const pool = document.getElementById("pool");
+    pool.innerHTML = '<div class="poolHeader">Unassigned (' + unassigned.length + ')</div>';
+    const chips = document.createElement("div");
+    chips.className = "poolChips";
+    unassigned.forEach(p => {
+        const chip = document.createElement("div");
+        chip.className = "chip";
+        chip.draggable = true;
+        chip.textContent = p.Name;
+        chip.addEventListener("dragstart", e => {
+            e.dataTransfer.setData("personId", String(p.PersonID));
+        });
+        chips.appendChild(chip);
+    });
+    pool.appendChild(chips);
+    registerPoolDropZone(pool);
+
     const board = document.getElementById("board");
     board.innerHTML = "";
-    if (shelters.length === 0) {
-        board.innerHTML = '<p style="color:#666">No assignments found. Check that tblAssignments has data.</p>';
-        return;
-    }
     const SHIFTS = ["Day", "Night"];
     shelters.forEach(shelter => {
         const shelterDiv = document.createElement("div");
@@ -107,11 +150,20 @@ function renderBoard(shelters) {
     });
 }
 
-function roleRank(role) {
-    const r = String(role || "").trim().toUpperCase();
-    if (r === "SV" || r.startsWith("SV ") || r.startsWith("SV-")) return 1;
-    if (r === "SA" || r.startsWith("SA ") || r.startsWith("SA-")) return 2;
-    return 3;
+function createPersonCard(person) {
+    const card = document.createElement("div");
+    card.className = "person";
+    card.draggable = true;
+    card.dataset.assignmentId = person.AssignmentID;
+    card.innerHTML =
+        '<strong>' + (person.PersonName || person.PersonID) + '</strong><br>' +
+        (person.Role || "");
+    card.addEventListener("dragstart", dragStart);
+    return card;
+}
+
+function dragStart(event) {
+    event.dataTransfer.setData("assignmentId", event.currentTarget.dataset.assignmentId);
 }
 
 function registerDropZone(div) {
@@ -123,28 +175,103 @@ function registerDropZone(div) {
     div.addEventListener("drop", async e => {
         e.preventDefault();
         div.classList.remove("dragover");
+        const personId = e.dataTransfer.getData("personId");
         const assignmentId = e.dataTransfer.getData("assignmentId");
-        await moveAssignment(assignmentId, div.dataset.shelterId, div.dataset.shift);
-        await refreshBoard();
+        if (personId) {
+            showRolePicker(e.pageX, e.pageY, async (role) => {
+                await createAssignment(personId, div.dataset.shelterId, div.dataset.shift, role);
+                await refreshBoard();
+            });
+        } else if (assignmentId) {
+            await moveAssignment(assignmentId, div.dataset.shelterId, div.dataset.shift);
+            await refreshBoard();
+        }
     });
 }
-function createPersonCard(person) {
-    const card = document.createElement("div");
-    card.className = "person";
-    card.draggable = true;
-    card.dataset.assignmentId = person.AssignmentID;
-    card.innerHTML =
-        '<strong>' + (person.PersonName || person.PersonID) + '</strong><br>' +
-        (person.Role || "") + '<br>' +
-        (person.Shift || "");
-    card.addEventListener("dragstart", dragStart);
-    return card;
+
+function registerPoolDropZone(pool) {
+    pool.addEventListener("dragover", e => { e.preventDefault(); pool.classList.add("dragover"); });
+    pool.addEventListener("dragleave", () => pool.classList.remove("dragover"));
+    pool.addEventListener("drop", async e => {
+        e.preventDefault();
+        pool.classList.remove("dragover");
+        const assignmentId = e.dataTransfer.getData("assignmentId");
+        if (assignmentId) {
+            await deleteAssignment(assignmentId);
+            await refreshBoard();
+        }
+    });
 }
 
-function dragStart(event) {
-    event.dataTransfer.setData("assignmentId", event.target.dataset.assignmentId);
+function showRolePicker(x, y, onPick) {
+    const picker = document.getElementById("rolePicker");
+    picker.innerHTML = '<div class="rpTitle">Role:</div>';
+    ["SV", "SA", "MN"].forEach(role => {
+        const btn = document.createElement("button");
+        btn.textContent = role;
+        btn.addEventListener("click", async () => {
+            picker.hidden = true;
+            await onPick(role);
+        });
+        picker.appendChild(btn);
+    });
+    picker.style.left = Math.min(x, window.innerWidth - 180) + "px";
+    picker.style.top = y + "px";
+    picker.hidden = false;
+
+    setTimeout(() => {
+        document.addEventListener("click", function dismiss(ev) {
+            if (!picker.contains(ev.target)) {
+                picker.hidden = true;
+                document.removeEventListener("click", dismiss);
+            }
+        });
+    }, 0);
 }
 
+async function createAssignment(personId, shelterId, shift, role) {
+    await Excel.run(async (context) => {
+        const table = context.workbook.tables.getItem("tblAssignments");
+        const headerRange = table.getHeaderRowRange();
+        const body = table.getDataBodyRange();
+        headerRange.load("values");
+        body.load("values");
+        await context.sync();
+
+        const headers = headerRange.values[0];
+        const idIdx = headers.indexOf("AssignmentID");
+
+        let maxNum = 0;
+        body.values.forEach(r => {
+            const m = String(r[idIdx] || "").match(/^A(\d+)$/i);
+            if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
+        });
+        const newId = "A" + String(maxNum + 1).padStart(3, "0");
+
+        const newRow = headers.map(h => {
+            if (h === "AssignmentID") return newId;
+            if (h === "ShelterID") return shelterId;
+            if (h === "PersonID") return personId;
+            if (h === "Shift") return shift;
+            if (h === "Role") return role;
+            return "";
+        });
+        table.rows.add(null, [newRow]);
+        await context.sync();
+
+        const body2 = table.getDataBodyRange();
+        body2.load("rowCount");
+        await context.sync();
+        const last = body2.rowCount - 1;
+        const pIdx = headers.indexOf("PersonName");
+        const sIdx = headers.indexOf("ShelterName");
+        if (pIdx > -1) body2.getCell(last, pIdx).formulas =
+            [["=XLOOKUP([@PersonID], tblPeople[PersonID], tblPeople[Name], \"?\")"]];
+        if (sIdx > -1) body2.getCell(last, sIdx).formulas =
+            [["=XLOOKUP([@ShelterID], tblShelters[ShelterID], tblShelters[Name], \"?\")"]];
+        await context.sync();
+    });
+}
 
 async function moveAssignment(assignmentId, shelterId, shift) {
     await Excel.run(async (context) => {
@@ -165,6 +292,19 @@ async function moveAssignment(assignmentId, shelterId, shift) {
 
         body.getCell(rowIndex, shelterColIdx).values = [[shelterId]];
         body.getCell(rowIndex, shiftColIdx).values = [[shift]];
+        await context.sync();
+    });
+}
+
+async function deleteAssignment(assignmentId) {
+    await Excel.run(async (context) => {
+        const table = context.workbook.tables.getItem("tblAssignments");
+        const body = table.getDataBodyRange();
+        body.load("values");
+        await context.sync();
+        const rowIndex = body.values.findIndex(r => String(r[0]) === String(assignmentId));
+        if (rowIndex < 0) return;
+        table.rows.getItemAt(rowIndex).delete();
         await context.sync();
     });
 }
