@@ -1,4 +1,5 @@
 let assignments = [];
+let peopleById = new Map();
 
 Office.onReady(async (info) => {
     if (info.host !== Office.HostType.Excel) {
@@ -28,6 +29,7 @@ async function registerWorkbookEvents() {
 async function refreshBoard() {
     assignments = await loadAssignments();
     const people = await loadPeople();
+    peopleById = new Map(people.map(p => [String(p.PersonID), p]));
     const assignedIds = new Set(assignments.map(a => String(a.PersonID)));
     const unassigned = people.filter(p => !assignedIds.has(String(p.PersonID)));
     const shelters = groupAssignments(assignments);
@@ -155,8 +157,10 @@ function createPersonCard(person) {
     card.className = "person";
     card.draggable = true;
     card.dataset.assignmentId = person.AssignmentID;
+    const p = peopleById.get(String(person.PersonID));
+    const name = (p && p.Name) || person.PersonName || person.PersonID;
     card.innerHTML =
-        '<strong>' + (person.PersonName || person.PersonID) + '</strong><br>' +
+        '<strong>' + name + '</strong><br>' +
         (person.Role || "");
     card.addEventListener("dragstart", dragStart);
     return card;
