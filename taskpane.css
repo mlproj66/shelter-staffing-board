@@ -41,3 +41,31 @@ body {
 .error {
     color: red;
 }
+
+.shiftColumns {
+    display: flex;
+    gap: 8px;
+}
+
+.shiftCol {
+    flex: 1;
+    min-height: 120px;
+    background: rgba(255,255,255,0.35);
+    border: 1.5px dashed transparent;
+    border-radius: 6px;
+    padding: 6px;
+}
+
+.shiftCol.dragover {
+    border-color: #8a84d8;
+    background: rgba(240,240,255,0.6);
+}
+
+.shiftHeader {
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6b675c;
+    margin-bottom: 6px;
+}
