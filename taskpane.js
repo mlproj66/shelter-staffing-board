@@ -2,34 +2,10 @@ let assignments = [];
 let people = [];
 let peopleById = new Map();
 let shelterList = [];
+let assignHeaders = null;
 
 function nextAssignmentId() {
     return "A-" + crypto.randomUUID().slice(0, 8);
-}
-
-async function pruneBlankAssignmentRows() {
-    await Excel.run(async (context) => {
-        const table = context.workbook.tables.getItem("tblAssignments");
-        const headerRange = table.getHeaderRowRange();
-        const body = table.getDataBodyRange();
-        headerRange.load("values");
-        body.load("values");
-        await context.sync();
-
-        const headers = headerRange.values[0];
-        const idx = ["AssignmentID", "ShelterID", "PersonID", "Shift", "Role"]
-            .map(h => headers.indexOf(h))
-            .filter(i => i > -1);
-
-        const blank = [];
-        body.values.forEach((r, i) => {
-            if (idx.every(c => r[c] === "" || r[c] === null)) blank.push(i);
-        });
-        for (let i = blank.length - 1; i >= 0; i--) {
-            table.rows.getItemAt(blank[i]).delete();
-        }
-        await context.sync();
-    });
 }
 
 Office.onReady(async (info) => {
@@ -41,6 +17,7 @@ Office.onReady(async (info) => {
     try {
         await refreshBoard();
         await registerWorkbookEvents();
+        pruneBlankAssignmentRows().catch(console.error);
     } catch (e) {
         document.getElementById("board").innerHTML =
             '<p style="color:red">Error: ' + e.message + '</p>';
@@ -48,23 +25,58 @@ Office.onReady(async (info) => {
 });
 
 let refreshTimer = null;
+let suppressUntil = 0;
+
+function noteLocalWrite() { suppressUntil = Date.now() + 2000; }
+
 async function registerWorkbookEvents() {
     await Excel.run(async (context) => {
         ["tblAssignments", "tblShelters", "tblPeople"].forEach(name => {
             context.workbook.tables.getItem(name).onChanged.add(async () => {
+                const delay = Date.now() < suppressUntil ? 2500 : 800;
                 clearTimeout(refreshTimer);
-                refreshTimer = setTimeout(() => refreshBoard().catch(console.error), 800);
+                refreshTimer = setTimeout(() => refreshBoard().catch(console.error), delay);
             });
         });
         await context.sync();
     });
 }
 
+function rowsToObjects(headers, rows) {
+    return rows
+        .filter(r => r[0] !== "" && r[0] !== null)
+        .map(row => {
+            const obj = {};
+            headers.forEach((h, i) => { obj[h] = row[i]; });
+            return obj;
+        });
+}
+
+async function loadAll() {
+    return Excel.run(async (context) => {
+        const t = context.workbook.tables;
+        const aH = t.getItem("tblAssignments").getHeaderRowRange().load("values");
+        const aB = t.getItem("tblAssignments").getDataBodyRange().load("values");
+        const pH = t.getItem("tblPeople").getHeaderRowRange().load("values");
+        const pB = t.getItem("tblPeople").getDataBodyRange().load("values");
+        const sH = t.getItem("tblShelters").getHeaderRowRange().load("values");
+        const sB = t.getItem("tblShelters").getDataBodyRange().load("values");
+        await context.sync();
+
+        assignHeaders = aH.values[0];
+        return {
+            assignments: rowsToObjects(aH.values[0], aB.values),
+            people: rowsToObjects(pH.values[0], pB.values),
+            shelters: rowsToObjects(sH.values[0], sB.values)
+        };
+    });
+}
+
 async function refreshBoard() {
-    assignments = await loadAssignments();
-    people = await loadPeople();
-    shelterList = await loadShelters();
-    pruneBlankAssignmentRows().catch(console.error);
+    const data = await loadAll();
+    assignments = data.assignments;
+    people = data.people;
+    shelterList = data.shelters;
     peopleById = new Map(people.map(p => [String(p.PersonID), p]));
     renderFromState();
 }
@@ -74,67 +86,6 @@ function renderFromState() {
     const unassigned = people.filter(p => !assignedIds.has(String(p.PersonID)));
     const shelters = groupAssignments(assignments);
     renderBoard(shelters, unassigned);
-}
-
-async function loadShelters() {
-    return Excel.run(async (context) => {
-        const table = context.workbook.tables.getItem("tblShelters");
-        const headerRange = table.getHeaderRowRange();
-        const bodyRange = table.getDataBodyRange();
-        headerRange.load("values");
-        bodyRange.load("values");
-        await context.sync();
-
-        const headers = headerRange.values[0];
-        return bodyRange.values
-            .filter(r => r[0] !== "" && r[0] !== null)
-            .map(row => {
-                const obj = {};
-                headers.forEach((h, i) => { obj[h] = row[i]; });
-                return obj;
-            });
-    });
-}
-
-async function loadAssignments() {
-    return Excel.run(async (context) => {
-        const table = context.workbook.tables.getItem("tblAssignments");
-        const headerRange = table.getHeaderRowRange();
-        const bodyRange = table.getDataBodyRange();
-        headerRange.load("values");
-        bodyRange.load("values");
-        await context.sync();
-
-        const headers = headerRange.values[0];
-        const rows = bodyRange.values;
-        return rows
-            .filter(r => r[0] !== "" && r[0] !== null)
-            .map(row => {
-                const obj = {};
-                headers.forEach((header, i) => { obj[header] = row[i]; });
-                return obj;
-            });
-    });
-}
-
-async function loadPeople() {
-    return Excel.run(async (context) => {
-        const table = context.workbook.tables.getItem("tblPeople");
-        const headerRange = table.getHeaderRowRange();
-        const bodyRange = table.getDataBodyRange();
-        headerRange.load("values");
-        bodyRange.load("values");
-        await context.sync();
-
-        const headers = headerRange.values[0];
-        return bodyRange.values
-            .filter(r => r[0] !== "" && r[0] !== null)
-            .map(row => {
-                const obj = {};
-                headers.forEach((h, i) => { obj[h] = row[i]; });
-                return obj;
-            });
-    });
 }
 
 function groupAssignments(rows) {
@@ -204,13 +155,13 @@ function renderBoard(shelters, unassigned) {
             col.dataset.shift = shift;
             col.innerHTML = '<div class="shiftHeader">' + shift + '</div>';
 
-            const people = shelter.people
+            const shiftPeople = shelter.people
                 .filter(p => p.Shift === shift)
                 .sort((a, b) =>
                     roleRank(a.Role) - roleRank(b.Role) ||
                     String(a.PersonName).localeCompare(String(b.PersonName)));
 
-            people.forEach(person => col.appendChild(createPersonCard(person)));
+            shiftPeople.forEach(person => col.appendChild(createPersonCard(person)));
             registerDropZone(col);
             columns.appendChild(col);
         });
@@ -260,6 +211,7 @@ function registerDropZone(div) {
                     PersonName: (peopleById.get(String(personId)) || {}).Name || personId
                 });
                 renderFromState();
+                noteLocalWrite();
                 createAssignment(newId, personId, shelterId, shift, role)
                     .catch(err => { console.error(err); refreshBoard(); });
             });
@@ -269,6 +221,7 @@ function registerDropZone(div) {
                 a.ShelterID = shelterId; a.ShelterName = shelterName; a.Shift = shift;
                 renderFromState();
             }
+            noteLocalWrite();
             moveAssignment(assignmentId, shelterId, shift)
                 .catch(err => { console.error(err); refreshBoard(); });
         }
@@ -287,6 +240,7 @@ function registerPoolDropZone(pool) {
         if (assignmentId) {
             assignments = assignments.filter(a => String(a.AssignmentID) !== String(assignmentId));
             renderFromState();
+            noteLocalWrite();
             deleteAssignment(assignmentId)
                 .catch(err => { console.error(err); refreshBoard(); });
         }
@@ -322,13 +276,7 @@ function showRolePicker(x, y, onPick) {
 async function createAssignment(newId, personId, shelterId, shift, role) {
     await Excel.run(async (context) => {
         const table = context.workbook.tables.getItem("tblAssignments");
-        const headerRange = table.getHeaderRowRange();
-        const body = table.getDataBodyRange();
-        headerRange.load("values");
-        body.load("values");
-        await context.sync();
-
-        const headers = headerRange.values[0];
+        const headers = assignHeaders;
 
         const newRow = headers.map(h => {
             if (h === "AssignmentID") return newId;
@@ -358,13 +306,11 @@ async function createAssignment(newId, personId, shelterId, shift, role) {
 async function moveAssignment(assignmentId, shelterId, shift) {
     await Excel.run(async (context) => {
         const table = context.workbook.tables.getItem("tblAssignments");
-        const headerRange = table.getHeaderRowRange();
         const body = table.getDataBodyRange();
-        headerRange.load("values");
         body.load("values");
         await context.sync();
 
-        const headers = headerRange.values[0];
+        const headers = assignHeaders;
         const shelterColIdx = headers.indexOf("ShelterID");
         const shiftColIdx = headers.indexOf("Shift");
         if (shelterColIdx === -1 || shiftColIdx === -1) return;
@@ -387,6 +333,29 @@ async function deleteAssignment(assignmentId) {
         const rowIndex = body.values.findIndex(r => String(r[0]) === String(assignmentId));
         if (rowIndex < 0) return;
         table.rows.getItemAt(rowIndex).delete();
+        await context.sync();
+    });
+}
+
+async function pruneBlankAssignmentRows() {
+    await Excel.run(async (context) => {
+        const table = context.workbook.tables.getItem("tblAssignments");
+        const body = table.getDataBodyRange();
+        body.load("values");
+        await context.sync();
+
+        const headers = assignHeaders;
+        const idx = ["AssignmentID", "ShelterID", "PersonID", "Shift", "Role"]
+            .map(h => headers.indexOf(h))
+            .filter(i => i > -1);
+
+        const blank = [];
+        body.values.forEach((r, i) => {
+            if (idx.every(c => r[c] === "" || r[c] === null)) blank.push(i);
+        });
+        for (let i = blank.length - 1; i >= 0; i--) {
+            table.rows.getItemAt(blank[i]).delete();
+        }
         await context.sync();
     });
 }
