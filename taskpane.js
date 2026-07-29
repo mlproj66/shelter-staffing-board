@@ -7,6 +7,31 @@ function nextAssignmentId() {
     return "A-" + crypto.randomUUID().slice(0, 8);
 }
 
+async function pruneBlankAssignmentRows() {
+    await Excel.run(async (context) => {
+        const table = context.workbook.tables.getItem("tblAssignments");
+        const headerRange = table.getHeaderRowRange();
+        const body = table.getDataBodyRange();
+        headerRange.load("values");
+        body.load("values");
+        await context.sync();
+
+        const headers = headerRange.values[0];
+        const idx = ["AssignmentID", "ShelterID", "PersonID", "Shift", "Role"]
+            .map(h => headers.indexOf(h))
+            .filter(i => i > -1);
+
+        const blank = [];
+        body.values.forEach((r, i) => {
+            if (idx.every(c => r[c] === "" || r[c] === null)) blank.push(i);
+        });
+        for (let i = blank.length - 1; i >= 0; i--) {
+            table.rows.getItemAt(blank[i]).delete();
+        }
+        await context.sync();
+    });
+}
+
 Office.onReady(async (info) => {
     if (info.host !== Office.HostType.Excel) {
         document.getElementById("board").innerHTML =
@@ -39,6 +64,7 @@ async function refreshBoard() {
     assignments = await loadAssignments();
     people = await loadPeople();
     shelterList = await loadShelters();
+    pruneBlankAssignmentRows().catch(console.error);
     peopleById = new Map(people.map(p => [String(p.PersonID), p]));
     renderFromState();
 }
