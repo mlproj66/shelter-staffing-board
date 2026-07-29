@@ -1,6 +1,7 @@
 let assignments = [];
 let people = [];
 let peopleById = new Map();
+let shelterList = [];
 
 function nextAssignmentId() {
     return "A-" + crypto.randomUUID().slice(0, 8);
@@ -24,18 +25,20 @@ Office.onReady(async (info) => {
 let refreshTimer = null;
 async function registerWorkbookEvents() {
     await Excel.run(async (context) => {
-        const table = context.workbook.tables.getItem("tblAssignments");
-        table.onChanged.add(async () => {
-            clearTimeout(refreshTimer);
-            refreshTimer = setTimeout(() => refreshBoard().catch(console.error), 800);
+        ["tblAssignments", "tblShelters", "tblPeople"].forEach(name => {
+            context.workbook.tables.getItem(name).onChanged.add(async () => {
+                clearTimeout(refreshTimer);
+                refreshTimer = setTimeout(() => refreshBoard().catch(console.error), 800);
+            });
         });
         await context.sync();
     });
-} 
+}
 
 async function refreshBoard() {
     assignments = await loadAssignments();
     people = await loadPeople();
+    shelterList = await loadShelters();
     peopleById = new Map(people.map(p => [String(p.PersonID), p]));
     renderFromState();
 }
@@ -45,6 +48,26 @@ function renderFromState() {
     const unassigned = people.filter(p => !assignedIds.has(String(p.PersonID)));
     const shelters = groupAssignments(assignments);
     renderBoard(shelters, unassigned);
+}
+
+async function loadShelters() {
+    return Excel.run(async (context) => {
+        const table = context.workbook.tables.getItem("tblShelters");
+        const headerRange = table.getHeaderRowRange();
+        const bodyRange = table.getDataBodyRange();
+        headerRange.load("values");
+        bodyRange.load("values");
+        await context.sync();
+
+        const headers = headerRange.values[0];
+        return bodyRange.values
+            .filter(r => r[0] !== "" && r[0] !== null)
+            .map(row => {
+                const obj = {};
+                headers.forEach((h, i) => { obj[h] = row[i]; });
+                return obj;
+            });
+    });
 }
 
 async function loadAssignments() {
@@ -90,12 +113,19 @@ async function loadPeople() {
 
 function groupAssignments(rows) {
     const shelters = {};
+    shelterList.forEach(s => {
+        shelters[s.ShelterID] = {
+            shelterId: s.ShelterID,
+            shelterName: s.Name,
+            people: []
+        };
+    });
     rows.forEach(row => {
         const shelterId = row.ShelterID;
         if (!shelters[shelterId]) {
             shelters[shelterId] = {
                 shelterId: shelterId,
-                shelterName: row.ShelterName,
+                shelterName: row.ShelterName || shelterId,
                 people: []
             };
         }
