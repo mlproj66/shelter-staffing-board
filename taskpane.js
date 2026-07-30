@@ -315,7 +315,8 @@ async function moveAssignment(assignmentId, shelterId, shift) {
         const shiftColIdx = headers.indexOf("Shift");
         if (shelterColIdx === -1 || shiftColIdx === -1) return;
 
-        const rowIndex = body.values.findIndex(r => String(headers.indexOf("AssignmentID")) === String(assignmentId));
+        const idIdx = headers.indexOf("AssignmentID");
+        const rowIndex = body.values.findIndex(r => String(r[idIdx]) === String(assignmentId));
         if (rowIndex < 0) return;
 
         body.getCell(rowIndex, shelterColIdx).values = [[shelterId]];
