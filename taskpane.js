@@ -315,7 +315,7 @@ async function moveAssignment(assignmentId, shelterId, shift) {
         const shiftColIdx = headers.indexOf("Shift");
         if (shelterColIdx === -1 || shiftColIdx === -1) return;
 
-        const rowIndex = body.values.findIndex(r => String(r[0]) === String(assignmentId));
+        const rowIndex = body.values.findIndex(r => String(headers.indexOf("AssignmentID")) === String(assignmentId));
         if (rowIndex < 0) return;
 
         body.getCell(rowIndex, shelterColIdx).values = [[shelterId]];
@@ -330,7 +330,7 @@ async function deleteAssignment(assignmentId) {
         const body = table.getDataBodyRange();
         body.load("values");
         await context.sync();
-        const rowIndex = body.values.findIndex(r => String(r[0]) === String(assignmentId));
+        const rowIndex = body.values.findIndex(r => String(headers.indexOf("AssignmentID")) === String(assignmentId));
         if (rowIndex < 0) return;
         table.rows.getItemAt(rowIndex).delete();
         await context.sync();
