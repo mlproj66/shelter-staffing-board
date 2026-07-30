@@ -329,9 +329,9 @@ async function deleteAssignment(assignmentId) {
         const table = context.workbook.tables.getItem("tblAssignments");
         const body = table.getDataBodyRange();
         body.load("values");
-        const assignmentColIdx = assignHeaders.indexOf("AssignmentID");
         await context.sync();
-        const rowIndex = body.values.findIndex(r => String(assignmentColIndex) === String(assignmentId));
+        const assignmentColIdx = assignHeaders.indexOf("AssignmentID");
+        const rowIndex = body.values.findIndex( r => String(r[assignmentColIdx]) === String(assignmentId));
         if (rowIndex < 0) return;
         table.rows.getItemAt(rowIndex).delete();
         await context.sync();
