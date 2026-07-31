@@ -274,7 +274,6 @@ function createPersonCard(person) {
     } else if (role === "MN") {
         card.classList.add("role-mn");
     }
-`
     card.draggable = true;
     card.dataset.assignmentId = person.AssignmentID;
     const p = peopleById.get(String(person.PersonID));
