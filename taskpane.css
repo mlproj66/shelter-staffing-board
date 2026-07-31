@@ -79,6 +79,30 @@ body {
 
 .person:hover { background: #ffee58; }
 
+.person.role-sv {
+    background: #c8e6c9;      /* light green */
+}
+
+.person.role-sv:hover {
+    background: #b7ddb9;
+}
+
+.person.role-sa {
+    background: #f8c8dc;      /* light pink */
+}
+
+.person.role-sa:hover {
+    background: #efbad0;
+}
+
+.person.role-mn {
+    background: #ffcc80;      /* light orange */
+}
+
+.person.role-mn:hover {
+    background: #ffc266;
+}
+
 #rolePicker {
     position: absolute;
     background: #fff; border: 1px solid #b9b4a4; border-radius: 8px;

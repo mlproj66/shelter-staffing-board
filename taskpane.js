@@ -263,7 +263,18 @@ function renderBoard(shelters, unassigned) {
  */
 function createPersonCard(person) {
     const card = document.createElement("div");
+    const role = String(person.Role || "").toUpperCase();
+
     card.className = "person";
+    
+    if (role === "SV") {
+        card.classList.add("role-sv");
+    } else if (role === "SA") {
+        card.classList.add("role-sa");
+    } else if (role === "MN") {
+        card.classList.add("role-mn");
+    }
+`
     card.draggable = true;
     card.dataset.assignmentId = person.AssignmentID;
     const p = peopleById.get(String(person.PersonID));
