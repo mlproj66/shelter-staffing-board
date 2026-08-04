@@ -1,7 +1,7 @@
 /**
- * taskpane.js
+ * contentapp.js
  *
- * Excel add-in taskpane for a shelter staffing board.
+ * Excel add-in contentapp for a shelter staffing board.
  *
  * Reads three Excel tables (tblAssignments, tblPeople, tblShelters),
  * renders a drag-and-drop board of shelters/shifts, and writes changes
@@ -278,12 +278,83 @@ function createPersonCard(person) {
     card.dataset.assignmentId = person.AssignmentID;
     const p = peopleById.get(String(person.PersonID));
     const name = (p && p.Name) || person.PersonName || person.PersonID;
+    const dayOff = formatDayOff(person.DayOff);
     card.innerHTML =
         '<strong>' + name + '</strong><br>' +
-        (person.Role || "");
+        (person.Role || "") +
+        '<div class="dayoff">Off: ' + (dayOff || "—") + '</div>';
     card.addEventListener("dragstart", dragStart);
+    card.addEventListener("click", (e) => {
+        if (e.target.closest(".dayoff") || e.detail === 2) {
+            openDayOffPicker(card, person.AssignmentID);
+        }
+    });
     return card;
 }
+
+/**
+ * Excel stores dates as serial numbers when read via the API, so convert
+ */
+function formatDayOff(v) {
+    if (v === "" || v === null || v === undefined) return "";
+    if (typeof v === "number") {
+        const d = new Date(Date.UTC(1899, 11, 30) + v * 86400000);
+        return (d.getUTCMonth() + 1) + "/" + d.getUTCDate() + "/" + d.getUTCFullYear();
+    }
+    return String(v);
+}
+
+function openDayOffPicker(card, assignmentId) {
+    const existing = document.getElementById("dayOffInput");
+    if (existing) existing.remove();
+    const input = document.createElement("input");
+    input.type = "date";
+    input.id = "dayOffInput";
+    input.style.position = "absolute";
+    const r = card.getBoundingClientRect();
+    input.style.left = (window.scrollX + r.left) + "px";
+    input.style.top = (window.scrollY + r.bottom) + "px";
+    input.style.zIndex = 20;
+    document.body.appendChild(input);
+    input.focus();
+    if (input.showPicker) { try { input.showPicker(); } catch (e) {} }
+
+    input.addEventListener("change", async () => {
+        const val = input.value;               // "YYYY-MM-DD" or ""
+        input.remove();
+        const a = assignments.find(x => String(x.AssignmentID) === String(assignmentId));
+        if (a) { a.DayOff = val ? excelSerialFromISO(val) : ""; renderFromState(); }
+        noteLocalWrite();
+        setDayOff(assignmentId, val).catch(err => { console.error(err); refreshBoard(); });
+    });
+    input.addEventListener("blur", () => setTimeout(() => input.remove(), 150));
+}
+
+function excelSerialFromISO(iso) {
+    const [y, m, d] = iso.split("-").map(Number);
+    return (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000;
+}
+
+async function setDayOff(assignmentId, isoDate) {
+    await Excel.run(async (context) => {
+        const table = context.workbook.tables.getItem("tblAssignments");
+        const body = table.getDataBodyRange();
+        body.load("values");
+        await context.sync();
+
+        const headers = assignHeaders;
+        const idIdx = headers.indexOf("AssignmentID");
+        const offIdx = headers.indexOf("DayOff");
+        if (offIdx === -1) return;
+
+        const rowIndex = body.values.findIndex(r => String(r[idIdx]) === String(assignmentId));
+        if (rowIndex < 0) return;
+
+        body.getCell(rowIndex, offIdx).values = [[isoDate || ""]];
+        await context.sync();
+    });
+}
+
 
 /**
  * Drag handler for existing assignment cards: stashes the assignment ID
@@ -428,6 +499,7 @@ async function createAssignment(newId, personId, shelterId, shift, role) {
             if (h === "PersonID") return personId;
             if (h === "Shift") return shift;
             if (h === "Role") return role;
+            if (h === "DayOff") return "";
             return "";
         });
         table.rows.add(null, [newRow]);

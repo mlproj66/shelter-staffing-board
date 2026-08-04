@@ -47,7 +47,7 @@ body {
 
 .shelter {
     min-height: 250px;
-    max-width: 420px
+    max-width: 420px;
     background: #fff7a8;
     border: 2px solid #d7ca76;
     padding: 10px;
@@ -120,3 +120,6 @@ body {
 }
 
 #rolePicker button:hover { background: #ece8da; }
+
+.dayoff { font-size: 11px; color: #6b675c; margin-top: 3px; cursor: pointer; }
+.dayoff:hover { text-decoration: underline; }

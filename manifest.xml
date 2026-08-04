@@ -37,7 +37,7 @@
 
   <DefaultSettings>
     <SourceLocation
-      DefaultValue="https://mlproj66.github.io/shelter-staffing-board/taskpane.html"/>
+      DefaultValue="https://mlproj66.github.io/shelter-staffing-board/contentapp.html"/>
     <RequestedWidth>1000</RequestedWidth>
     <RequestedHeight>700</RequestedHeight>
   </DefaultSettings>
